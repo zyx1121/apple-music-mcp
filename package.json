@@ -1,0 +1,38 @@
+{
+  "name": "@zyx1121/apple-music-mcp",
+  "version": "0.1.0",
+  "description": "MCP server for Apple Music — control playback, search library, and manage playlists via Claude Code",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "apple-music-mcp": "dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "apple-music",
+    "claude",
+    "music",
+    "macos"
+  ],
+  "author": "zyx1121",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  }
+}
