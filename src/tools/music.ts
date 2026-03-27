@@ -14,10 +14,10 @@ export function registerMusicTools(server: McpServer) {
     withErrorHandling(async () => {
       const raw = await runAppleScript(`
 tell application "Music"
-  set st to player state as string
+  set playerSt to (player state as string)
   set vol to sound volume
   set shuf to shuffle enabled
-  set rep to song repeat as string
+  set rep to (song repeat as string)
   set pos to player position
   set trackInfo to ""
   try
@@ -25,7 +25,7 @@ tell application "Music"
     set dur to duration of t
     set trackInfo to (name of t) & "\\t" & (artist of t) & "\\t" & (album of t) & "\\t" & (genre of t) & "\\t" & (year of t as string) & "\\t" & (dur as integer as string)
   end try
-  return st & "\\t" & vol & "\\t" & shuf & "\\t" & rep & "\\t" & (pos as integer as string) & "\\t" & trackInfo
+  return playerSt & "\\t" & vol & "\\t" & shuf & "\\t" & rep & "\\t" & (pos as integer as string) & "\\t" & trackInfo
 end tell`);
       const parts = raw.split("\t");
       const [state, volume, shuffle, repeat, position, name, artist, album, genre, year, duration] = parts;
