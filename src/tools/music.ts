@@ -116,7 +116,7 @@ end tell`);
     {
       description: "Enable or disable shuffle",
       inputSchema: z.object({
-        enabled: z.coerce.boolean().describe("true to enable shuffle, false to disable"),
+        enabled: z.preprocess((v) => v === true || v === "true", z.boolean()).describe("true to enable shuffle, false to disable"),
       }),
     },
     withErrorHandling(async ({ enabled }) => {
@@ -176,7 +176,7 @@ end tell`);
       description: "Play a specific playlist",
       inputSchema: z.object({
         name: z.string().describe("Playlist name"),
-        shuffle: z.coerce.boolean().optional().describe("Enable shuffle before playing"),
+        shuffle: z.preprocess((v) => v === true || v === "true", z.boolean()).optional().describe("Enable shuffle before playing"),
       }),
     },
     withErrorHandling(async ({ name, shuffle }) => {
