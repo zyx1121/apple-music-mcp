@@ -260,6 +260,137 @@ end tell`);
     }),
   );
 
+  // Create playlist
+  server.registerTool(
+    "music_create_playlist",
+    {
+      description: "Create a new playlist",
+      inputSchema: z.object({
+        name: z.string().min(1).describe("Playlist name"),
+      }),
+    },
+    withErrorHandling(async ({ name }) => {
+      const esc = escapeForAppleScript(name);
+      await runAppleScript(`tell application "Music" to make new playlist with properties {name:"${esc}"}`);
+      return success({ created: name });
+    }),
+  );
+
+  // Add track to playlist
+  server.registerTool(
+    "music_add_to_playlist",
+    {
+      description: "Add a track to a playlist by searching for it",
+      inputSchema: z.object({
+        playlist: z.string().min(1).describe("Playlist name"),
+        query: z.string().min(1).describe("Track name or artist to search"),
+      }),
+    },
+    withErrorHandling(async ({ playlist, query }) => {
+      const escPlaylist = escapeForAppleScript(playlist);
+      const escQuery = escapeForAppleScript(query);
+      const raw = await runAppleScript(`
+tell application "Music"
+  set results to search playlist "Library" for "${escQuery}"
+  if (count of results) is 0 then return "NOT_FOUND"
+  set t to item 1 of results
+  duplicate t to playlist "${escPlaylist}"
+  return (name of t) & "\\t" & (artist of t) & "\\t" & (album of t)
+end tell`);
+      if (raw === "NOT_FOUND") return success({ error: `No track found for "${query}"` });
+      const [name, artist, album] = raw.split("\t");
+      return success({ added: { name, artist, album }, playlist });
+    }),
+  );
+
+  // Remove track from playlist
+  server.registerTool(
+    "music_remove_from_playlist",
+    {
+      description: "Remove a track from a playlist by name",
+      inputSchema: z.object({
+        playlist: z.string().min(1).describe("Playlist name"),
+        track: z.string().min(1).describe("Track name to remove"),
+      }),
+    },
+    withErrorHandling(async ({ playlist, track }) => {
+      const escPlaylist = escapeForAppleScript(playlist);
+      const escTrack = escapeForAppleScript(track);
+      const raw = await runAppleScript(`
+tell application "Music"
+  set pl to playlist "${escPlaylist}"
+  set found to false
+  repeat with t in tracks of pl
+    if name of t is "${escTrack}" then
+      delete t
+      set found to true
+      exit repeat
+    end if
+  end repeat
+  if found then return "OK"
+  return "NOT_FOUND"
+end tell`);
+      if (raw === "NOT_FOUND") return success({ error: `Track "${track}" not found in playlist "${playlist}"` });
+      return success({ removed: track, playlist });
+    }),
+  );
+
+  // Get queue (current track info)
+  // NOTE: Apple Music's AppleScript API does not expose the playback queue.
+  // We return the current track as the best available approximation.
+  server.registerTool(
+    "music_get_queue",
+    {
+      description: "Get the current track info. Note: Apple Music AppleScript has no queue API, so only the current track is returned.",
+      inputSchema: {},
+    },
+    withErrorHandling(async () => {
+      const raw = await runAppleScript(`
+tell application "Music"
+  if player state is stopped then return "STOPPED"
+  set t to current track
+  return (name of t) & "\\t" & (artist of t) & "\\t" & (album of t) & "\\t" & (duration of t as integer as string) & "\\t" & (player position as integer as string)
+end tell`);
+      if (raw === "STOPPED") return success({ queue: [], note: "Playback is stopped, no queue available." });
+      const [name, artist, album, duration, position] = raw.split("\t");
+      return success({
+        currentTrack: { name, artist, album, duration: Number(duration), position: Number(position) },
+        note: "Apple Music AppleScript does not expose the upcoming queue. Only the current track is available.",
+      });
+    }),
+  );
+
+  // Play next (search and play a track immediately)
+  // NOTE: Apple Music AppleScript has no "play next" / "add to up next" API.
+  // As a workaround, we search for the track and play it immediately.
+  // The previously playing track's position is lost.
+  server.registerTool(
+    "music_play_next",
+    {
+      description: "Search for a track and play it immediately. Note: AppleScript has no 'play next' API, so this plays the track right away instead of inserting it into the queue.",
+      inputSchema: z.object({
+        query: z.string().min(1).describe("Track name or artist to search and play next"),
+      }),
+    },
+    withErrorHandling(async ({ query }) => {
+      const esc = escapeForAppleScript(query);
+      const raw = await runAppleScript(`
+tell application "Music"
+  set results to search playlist "Library" for "${esc}"
+  if (count of results) is 0 then return "NOT_FOUND"
+  set t to item 1 of results
+  play t
+  return (name of t) & "\\t" & (artist of t) & "\\t" & (album of t)
+end tell`);
+      if (raw === "NOT_FOUND") return success({ error: `No track found for "${query}"` });
+      const [name, artist, album] = raw.split("\t");
+      return success({
+        playing: { name, artist, album },
+        note: "Track is now playing. AppleScript does not support 'play next' — the track was played immediately.",
+      });
+    }),
+  );
+
   // Play search result
   server.registerTool(
     "music_play_track",
